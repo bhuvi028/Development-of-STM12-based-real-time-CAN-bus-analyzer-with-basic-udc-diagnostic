@@ -1,0 +1,67 @@
+#include "main.h"
+#include <stdio.h>
+#include <string.h>
+
+CAN_HandleTypeDef hcan1;
+UART_HandleTypeDef huart2;
+
+CAN_RxHeaderTypeDef RxHeader;
+uint8_t RxData[8];
+char msg[100];
+
+void CAN_Filter_Config(void)
+{
+    CAN_FilterTypeDef FilterConfig;
+
+    FilterConfig.FilterBank = 0;
+    FilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    FilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    FilterConfig.FilterIdHigh = 0x0000;
+    FilterConfig.FilterIdLow = 0x0000;
+    FilterConfig.FilterMaskIdHigh = 0x0000;
+    FilterConfig.FilterMaskIdLow = 0x0000;
+    FilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    FilterConfig.FilterActivation = ENABLE;
+
+    HAL_CAN_ConfigFilter(&hcan1, &FilterConfig);
+}
+
+void CAN_Start(void)
+{
+    HAL_CAN_Start(&hcan1);
+    HAL_CAN_ActivateNotification(&hcan1,
+                                CAN_IT_RX_FIFO0_MSG_PENDING);
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    HAL_CAN_GetRxMessage(hcan,
+                         CAN_RX_FIFO0,
+                         &RxHeader,
+                         RxData);
+
+    sprintf(msg,
+            "ID:0x%03lX DLC:%d Data:",
+            RxHeader.StdId,
+            RxHeader.DLC);
+
+    HAL_UART_Transmit(&huart2,
+                     (uint8_t*)msg,
+                     strlen(msg),
+                     100);
+
+    for(int i=0;i<RxHeader.DLC;i++)
+    {
+        sprintf(msg,"%02X ",RxData[i]);
+        HAL_UART_Transmit(&huart2,
+                         (uint8_t*)msg,
+                         strlen(msg),
+                         100);
+    }
+
+    sprintf(msg,"\r\n");
+    HAL_UART_Transmit(&huart2,
+                     (uint8_t*)msg,
+                     strlen(msg),
+                     100);
+}
